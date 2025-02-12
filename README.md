@@ -1,5 +1,7 @@
 # Differential Octree Rasterization
 
+Note On Fork: I don't know what I'm doing, but hopefully this HIPIFY'd code runs on AMD GPUs now.
+
 Real-time rasterization engine for differentiable rendering of voxels, radiance field & 3D gaussians with octree structure. Used in paper "[Structured 3D Latents for Scalable and Versatile 3D Generation](https://arxiv.org/abs/2412.01506)"
 
 The algorithm is inspired by [diff-gaussian-rasterization](https://github.com/graphdeco-inria/diff-gaussian-rasterization)
