@@ -17,7 +17,7 @@ namespace cg = cooperative_groups;
 
 /**
  * Backward pass for converting the input spherical harmonics coefficients of each voxel to a simple RGB color.
- * 
+ *
  * @param idx Index of the point in the input array.
  * @param deg Degree of the spherical harmonics coefficients.
  * @param max_coeffs Maximum number of coefficients.
@@ -176,7 +176,7 @@ static __global__ void preprocessBackward(
 
 /**
  * Backward version of the rendering procedure.
- * 
+ *
  * @tparam CHANNELS Number of channels.
  * @param ranges Ranges of voxel instances for each tile.
  * @param point_list List of voxel instances.
@@ -200,7 +200,7 @@ static __global__ void __launch_bounds__(BLOCK_X * BLOCK_Y)
 renderBackward(
 	const uint2* __restrict__ ranges,
 	const uint32_t* __restrict__ point_list,
-	const int W, 
+	const int W,
     const int H,
 	const float* __restrict__ bg_color,
 	const float2* __restrict__ points_xy_image,
@@ -238,7 +238,7 @@ renderBackward(
 	__shared__ float collected_depths[BLOCK_SIZE];
 
     // In the forward, we stored the final value for T, the
-	// product of all (1 - alpha) factors. 
+	// product of all (1 - alpha) factors.
 	const float T_final = inside ? final_Ts[pix_id] : 0;
 	float T = T_final;
 
@@ -308,7 +308,7 @@ renderBackward(
 			if (contributor >= last_contributor)
 				continue;
 
-			// Resample using conic matrix (cf. "Surface 
+			// Resample using conic matrix (cf. "Surface
 			// Splatting" by Zwicker et al., 2001)
 			const float2 xy = collected_xy[j];
 			const float2 d = { xy.x - pixf.x, xy.y - pixf.y };
@@ -337,7 +337,7 @@ renderBackward(
 				const float dL_dchannel = dL_dout_color[ch];
 				dL_dalpha += (c - accum_color[ch]) * dL_dchannel;
 				accum_color[ch] = alpha * c + (1.f - alpha) * accum_color[ch];
-				// Update the gradients w.r.t. color of the voxel. 
+				// Update the gradients w.r.t. color of the voxel.
 				// Atomic, since this pixel is just one of potentially
 				// many that were affected by this voxel.
 				atomicAdd(&(grad_colors[global_id * CHANNELS + ch]), weight * dL_dchannel);
@@ -410,19 +410,19 @@ void OctreeGaussianRasterizer::CUDA::backward(
 	const float focal_y = width / (2.f * tan_fovx);
 
     const float* color_ptr = (colors_precomp != nullptr) ? colors_precomp : geomState.rgb;
-    CHECK_CUDA(renderBackward<NUM_CHANNELS><<<grid, block>>>(
+    renderBackward<NUM_CHANNELS><<<grid, block>>>(
         imgState.ranges, binningState.point_list,
 		width, height, background, geomState.means2D,
 		color_ptr, geomState.depths, geomState.conic_opacity,
 		imgState.accum_alpha, imgState.n_contrib,
 		grad_out_color, grad_out_depth, grad_out_alpha,
         grad_colors, grad_opacities, aux_grad_colors2, aux_contributions
-    ));
+    );
 
-    CHECK_CUDA(preprocessBackward<<<(num_nodes+255)/256, 256>>>(
+    preprocessBackward<<<(num_nodes+255)/256, 256>>>(
         num_nodes, active_sh_degree, num_sh_coefs,
         positions, scale_modifier, shs, geomState.clamped,
         viewmatrix, projmatrix, (glm::vec3*)cam_pos, aabb,
         grad_colors, grad_shs
-    ));
+    );
 }

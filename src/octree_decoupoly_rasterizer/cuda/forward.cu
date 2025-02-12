@@ -40,7 +40,7 @@ static uint32_t getHigherMsb(uint32_t n) {
 
 /**
  * Forward pass for converting the input spherical harmonics coefficients of each voxel to color.
- * 
+ *
  * @param deg Degree of the spherical harmonics coefficients.
  * @param max_coeffs Maximum number of coefficients.
  * @param mean 3D points.
@@ -49,8 +49,8 @@ static uint32_t getHigherMsb(uint32_t n) {
  * @param color Output color.
  */
 static __device__ void computeColorFromSH(int deg, int max_coeffs, const glm::vec3* mean, glm::vec3 campos, const float* sh, float* color) {
-	// The implementation is loosely based on code for 
-	// "Differentiable Point-Based Radiance Fields for 
+	// The implementation is loosely based on code for
+	// "Differentiable Point-Based Radiance Fields for
 	// Efficient View Synthesis" by Zhang et al. (2022)
 	glm::vec3 pos = *mean;
 	glm::vec3 dir = pos - campos;
@@ -116,7 +116,7 @@ static __device__ void computeColorFromSH(int deg, int max_coeffs, const glm::ve
 
 /**
  * Compute the morton code for a 3D point based on the camera position and the depth of the voxel.
- * 
+ *
  * @param pos Position of the point.
  * @param campos Camera position.
  * @param depth Depth of the voxel.
@@ -224,9 +224,9 @@ static __global__ void preprocess(
 
 
 /**
- * Generates one key/value pair for all voxel / tile overlaps. 
+ * Generates one key/value pair for all voxel / tile overlaps.
  * Run once per voxel (1:N mapping).
- * 
+ *
  * @param P Number of points.
  * @param points_xy 2D points.
  * @param depths Depths of points.
@@ -257,11 +257,11 @@ static __global__ void duplicateWithKeys(
 		uint2 rect_min, rect_max;
 		getRect(bboxes[idx], rect_min, rect_max, grid);
 
-		// For each tile that the bounding rect overlaps, emit a 
+		// For each tile that the bounding rect overlaps, emit a
 		// key/value pair. The key is |  tile ID  |      depth      |,
-		// and the value is the ID of the voxel. Sorting the values 
+		// and the value is the ID of the voxel. Sorting the values
 		// with this key yields voxel IDs in a list, such that they
-		// are first sorted by tile and then by depth. 
+		// are first sorted by tile and then by depth.
 		for (int y = rect_min.y; y < rect_max.y; y++)
 		{
 			for (int x = rect_min.x; x < rect_max.x; x++)
@@ -280,7 +280,7 @@ static __global__ void duplicateWithKeys(
 
 /**
  * Check keys to see if it is at the start/end of one tile's range in the full sorted list. If yes, write start/end of this tile.
- * 
+ *
  * @param L Number of points.
  * @param point_list_keys List of keys.
  * @param ranges Ranges of tiles.
@@ -352,7 +352,7 @@ static __device__ void sample_decoupoly(
 
 /**
  * Main rasterization method. Collaboratively works on one tile per
- * block, each thread treats one pixel. Alternates between fetching 
+ * block, each thread treats one pixel. Alternates between fetching
  * and rasterizing data.
  * 
  * @param ranges Ranges of voxel instances for each tile.
@@ -532,7 +532,7 @@ render(
 			float step = (0.5f / SAMPLE_DIM) * scale.x;
 			int t_start = (int)ceil(itsc.x / step - jitter);
 			int t_end = (int)floor(itsc.y / step - jitter);
-			for (int t = t_start; t <= t_end; t++) {	
+			for (int t = t_start; t <= t_end; t++) {
 				float z = (t + jitter) * step;
 
 				// Sample decoupoly
@@ -657,24 +657,24 @@ int OctreeDecoupolyRasterizer::CUDA::forward(
 
 	// Run preprocessing kernel
 	DEBUG_PRINT("Calling preprocess kernel\n");
-	CHECK_CUDA(preprocess<<<(num_nodes+255)/256, 256>>>(
+	preprocess<<<(num_nodes+255)/256, 256>>>(
 		num_nodes, active_sh_degree, num_sh_coefs,
 		positions, shs, depths, scale_modifier,
 		viewmatrix, projmatrix, (glm::vec3*)cam_pos,
 		width, height, aabb, geomState.colors,
 		geomState.bboxes, grid, geomState.tiles_touched, geomState.morton_codes
-	));
+	);
 
 	// Compute prefix sum over full list of touched tile counts by voxels
 	// E.g., [2, 3, 0, 2, 1] -> [2, 5, 5, 7, 8]
-	CHECK_CUDA(cub::DeviceScan::InclusiveSum(
+	cub::DeviceScan::InclusiveSum(
 		geomState.scanning_space, geomState.scan_size,
 		geomState.tiles_touched, geomState.point_offsets, num_nodes
-	));
+	);
 
 	// Retrieve total number of voxel instances to launch
 	int num_rendered;
-	CHECK_CUDA(cudaMemcpy(&num_rendered, geomState.point_offsets + num_nodes - 1, sizeof(int), cudaMemcpyDeviceToHost));
+	cudaMemcpy(&num_rendered, geomState.point_offsets + num_nodes - 1, sizeof(int), cudaMemcpyDeviceToHost);
 	if (num_rendered == 0)
 		return 0;
 
@@ -686,34 +686,34 @@ int OctreeDecoupolyRasterizer::CUDA::forward(
 	buffer_ptr = binningBuffer(buffer_size);
 	BinningState binningState = BinningState::fromChunk(buffer_ptr, num_rendered);
 
-	// For each instance to be rendered, produce adequate [ tile | depth ] key 
+	// For each instance to be rendered, produce adequate [ tile | depth ] key
 	// and corresponding dublicated voxel indices to be sorted
 	DEBUG_PRINT("Calling duplicateWithKeys kernel\n");
-	CHECK_CUDA(duplicateWithKeys<<<(num_nodes+255)/256, 256>>>(
+	duplicateWithKeys<<<(num_nodes+255)/256, 256>>>(
 		num_nodes, geomState.morton_codes, geomState.point_offsets,
 		binningState.point_list_keys_unsorted, binningState.point_list_unsorted,
 		geomState.bboxes, grid
-	));
+	);
 
 	// Sort complete list of (duplicated) voxel indices by keys
 	int bit = getHigherMsb(grid.x * grid.y);
-	CHECK_CUDA(cub::DeviceRadixSort::SortPairs(
+	cub::DeviceRadixSort::SortPairs(
 		binningState.list_sorting_space, binningState.sorting_size,
 		binningState.point_list_keys_unsorted, binningState.point_list_keys,
 		binningState.point_list_unsorted, binningState.point_list,
 		num_rendered, 0, 32 + bit
-	));
+	);
 
 	// Identify start and end of per-tile workloads in sorted list
-	CHECK_CUDA(cudaMemset(imgState.ranges, 0, grid.x * grid.y * sizeof(uint2)));
-	CHECK_CUDA(identifyTileRanges<<<(num_rendered+255)/256, 256>>>(
+	cudaMemset(imgState.ranges, 0, grid.x * grid.y * sizeof(uint2));
+	identifyTileRanges<<<(num_rendered+255)/256, 256>>>(
 		num_rendered, binningState.point_list_keys, imgState.ranges
-	));
+	);
 
 	// Let each tile blend its range of voxels independently in parallel
 	const float* color_ptr = (shs) ? geomState.colors : colors;
 	DEBUG_PRINT("Calling render kernel\n");
-	CHECK_CUDA(render<<<grid, block>>>(
+	render<<<grid, block>>>(
 		imgState.ranges, binningState.point_list,
 		width, height, background,
 		(float3*)cam_pos, tan_fovx, tan_fovy, viewmatrix, aabb,
@@ -721,7 +721,7 @@ int OctreeDecoupolyRasterizer::CUDA::forward(
 		imgState.n_contrib, imgState.t_contrib, out_color, out_depth, out_alpha
 		// DEBUG
 		// ,dbg_ray_id, dbg_position, dbg_density, dbg_color, dbg_weight
-	));
+	);
 
 	return num_rendered;
 }

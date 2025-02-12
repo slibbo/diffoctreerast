@@ -17,7 +17,7 @@ namespace cg = cooperative_groups;
 
 /**
  * Helper function to find the highest bit set in an integer.
- * 
+ *
  * @param n Integer.
  * @return Highest bit set.
 */
@@ -40,7 +40,7 @@ static uint32_t getHigherMsb(uint32_t n) {
 
 /**
  * Forward pass for converting the input spherical harmonics coefficients of each voxel to a simple RGB color.
- * 
+ *
  * @param idx Index of the point in the input array.
  * @param deg Degree of the spherical harmonics coefficients.
  * @param max_coeffs Maximum number of coefficients.
@@ -51,8 +51,8 @@ static uint32_t getHigherMsb(uint32_t n) {
  * @return The color of the point.
  */
 static __device__ glm::vec3 computeColorFromSH(int idx, int deg, int max_coeffs, const glm::vec3 pos, glm::vec3 campos, const float* shs, bool* clamped) {
-	// The implementation is loosely based on code for 
-	// "Differentiable Point-Based Radiance Fields for 
+	// The implementation is loosely based on code for
+	// "Differentiable Point-Based Radiance Fields for
 	// Efficient View Synthesis" by Zhang et al. (2022)
 	glm::vec3 dir = pos - campos;
 	dir = dir / glm::length(dir);
@@ -104,7 +104,7 @@ static __device__ glm::vec3 computeColorFromSH(int idx, int deg, int max_coeffs,
 
 /**
  * Forward pass of dots screen-space 2D covariance computation.
- * 
+ *
  * @param mean Mean of the Gaussian.
  * @param cov3D 3D covariance matrix of the Gaussian.
  * @param focal_x Focal length in x direction.
@@ -120,7 +120,7 @@ static __device__ float3 computeCov2D(
 	const float tan_fovx, const float tan_fovy, const float* viewmatrix
 ) {
 	// The following models the steps outlined by equations 29
-	// and 31 in "EWA Splatting" (Zwicker et al., 2002). 
+	// and 31 in "EWA Splatting" (Zwicker et al., 2002).
 	// Additionally considers aspect / scaling of viewport.
 	// Transposes used to account for row-/column-major conventions.
 	float3 t = transformPoint4x3(mean, viewmatrix);
@@ -163,7 +163,7 @@ static __device__ float3 computeCov2D(
  * Forward method for converting scale properties of each
  * Gaussian to a 3D covariance matrix in world space. Also takes care
  * of quaternion normalization.
- * 
+ *
  * @param scale scale of the Gaussians.
  * @param mod scale modifier.
  * @param cov3D 3D covariance matrix of the Gaussian.
@@ -195,7 +195,7 @@ static __device__ void computeCov3D(
 
 /**
  * Compute the morton code for a 3D point based on the camera position and the depth of the voxel.
- * 
+ *
  * @param pos Position of the point.
  * @param campos Camera position.
  * @param depth Depth of the voxel.
@@ -287,7 +287,7 @@ static __global__ void preprocess(
 	float cov3D[6];
 	computeCov3D(scale, scale_modifier, cov3D);
 	float3 cov = computeCov2D(p_orig, cov3D, focal_x, focal_y, tan_fovx, tan_fovy, viewmatrix);
-	
+
 	// Invert covariance (EWA algorithm)
 	float det = (cov.x * cov.z - cov.y * cov.y);
 	if (det == 0.0f)
@@ -298,7 +298,7 @@ static __global__ void preprocess(
 	// Compute extent in screen space (by finding eigenvalues of
 	// 2D covariance matrix). Use extent to compute a bounding rectangle
 	// of screen-space tiles that this Gaussian overlaps with. Quit if
-	// rectangle covers 0 tiles. 
+	// rectangle covers 0 tiles.
 	float mid = 0.5f * (cov.x + cov.z);
 	float lambda1 = mid + sqrt(max(0.1f, mid * mid - det));
 	float lambda2 = mid - sqrt(max(0.1f, mid * mid - det));
@@ -339,9 +339,9 @@ static __global__ void preprocess(
 
 
 /**
- * Generates one key/value pair for all voxel / tile overlaps. 
+ * Generates one key/value pair for all voxel / tile overlaps.
  * Run once per voxel (1:N mapping).
- * 
+ *
  * @param P Number of points.
  * @param points_xy 2D points.
  * @param depths Depths of points.
@@ -373,11 +373,11 @@ static __global__ void duplicateWithKeys(
 		uint2 rect_min, rect_max;
 		getRect(points_xy[idx], radii[idx], rect_min, rect_max, grid);
 
-		// For each tile that the bounding rect overlaps, emit a 
+		// For each tile that the bounding rect overlaps, emit a
 		// key/value pair. The key is |  tile ID  |      depth      |,
-		// and the value is the ID of the voxel. Sorting the values 
+		// and the value is the ID of the voxel. Sorting the values
 		// with this key yields voxel IDs in a list, such that they
-		// are first sorted by tile and then by depth. 
+		// are first sorted by tile and then by depth.
 		for (int y = rect_min.y; y < rect_max.y; y++)
 		{
 			for (int x = rect_min.x; x < rect_max.x; x++)
@@ -396,7 +396,7 @@ static __global__ void duplicateWithKeys(
 
 /**
  * Check keys to see if it is at the start/end of one tile's range in the full sorted list. If yes, write start/end of this tile.
- * 
+ *
  * @param L Number of points.
  * @param point_list_keys List of keys.
  * @param ranges Ranges of tiles.
@@ -428,9 +428,9 @@ static __global__ void identifyTileRanges(int L, uint64_t* point_list_keys, uint
 
 /**
  * Main rasterization method. Collaboratively works on one tile per
- * block, each thread treats one pixel. Alternates between fetching 
+ * block, each thread treats one pixel. Alternates between fetching
  * and rasterizing data.
- * 
+ *
  * @tparam CHANNELS Number of channels.
  * @param ranges Ranges of voxel instances for each tile.
  * @param point_list List of voxel instances.
@@ -521,7 +521,7 @@ render(
 			// Keep track of current position in range
 			contributor++;
 
-			// Resample using conic matrix (cf. "Surface 
+			// Resample using conic matrix (cf. "Surface
 			// Splatting" by Zwicker et al., 2001)
 			float2 xy = collected_xy[j];
 			float2 d = { xy.x - pixf.x, xy.y - pixf.y };
@@ -533,7 +533,7 @@ render(
 			// Eq. (2) from 3D Gaussian splatting paper.
 			// Obtain alpha by multiplying with Gaussian opacity
 			// and its exponential falloff from mean.
-			// Avoid numerical instabilities (see paper appendix). 
+			// Avoid numerical instabilities (see paper appendix).
 			float alpha = min(0.999f, con_o.w * exp(power));
 			const float weight = alpha * T;
 
@@ -621,7 +621,7 @@ int OctreeGaussianRasterizer::CUDA::forward(
 
 	// Run preprocessing kernel
 	DEBUG_PRINT("Calling preprocess kernel\n");
-	CHECK_CUDA(preprocess<<<(num_nodes+255)/256, 256>>>(
+	preprocess<<<(num_nodes+255)/256, 256>>>(
 		num_nodes, active_sh_degree, num_sh_coefs,
 		positions, depths, scale_modifier,
 		opacities, shs, geomState.clamped, colors_precomp,
@@ -630,18 +630,18 @@ int OctreeGaussianRasterizer::CUDA::forward(
 		geomState.radii, geomState.means2D, geomState.depths,
 		geomState.rgb, geomState.conic_opacity, grid, geomState.tiles_touched,
 		geomState.morton_codes
-	));
+	);
 
 	// Compute prefix sum over full list of touched tile counts by voxels
 	// E.g., [2, 3, 0, 2, 1] -> [2, 5, 5, 7, 8]
-	CHECK_CUDA(cub::DeviceScan::InclusiveSum(
+	cub::DeviceScan::InclusiveSum(
 		geomState.scanning_space, geomState.scan_size,
 		geomState.tiles_touched, geomState.point_offsets, num_nodes
-	));
+	);
 
 	// Retrieve total number of voxel instances to launch
 	int num_rendered;
-	CHECK_CUDA(cudaMemcpy(&num_rendered, geomState.point_offsets + num_nodes - 1, sizeof(int), cudaMemcpyDeviceToHost));
+	cudaMemcpy(&num_rendered, geomState.point_offsets + num_nodes - 1, sizeof(int), cudaMemcpyDeviceToHost);
 	if (num_rendered == 0)
 		return 0;
 
@@ -653,40 +653,40 @@ int OctreeGaussianRasterizer::CUDA::forward(
 	buffer_ptr = binningBuffer(buffer_size);
 	BinningState binningState = BinningState::fromChunk(buffer_ptr, num_rendered);
 
-	// For each instance to be rendered, produce adequate [ tile | depth ] key 
+	// For each instance to be rendered, produce adequate [ tile | depth ] key
 	// and corresponding dublicated voxel indices to be sorted
 	DEBUG_PRINT("Calling duplicateWithKeys kernel\n");
-	CHECK_CUDA(duplicateWithKeys<<<(num_nodes+255)/256, 256>>>(
+	duplicateWithKeys<<<(num_nodes+255)/256, 256>>>(
 		num_nodes, geomState.means2D, geomState.morton_codes, geomState.point_offsets,
 		binningState.point_list_keys_unsorted, binningState.point_list_unsorted,
 		geomState.radii, grid
-	));
+	);
 
 	// Sort complete list of (duplicated) voxel indices by keys
 	int bit = getHigherMsb(grid.x * grid.y);
-	CHECK_CUDA(cub::DeviceRadixSort::SortPairs(
+	cub::DeviceRadixSort::SortPairs(
 		binningState.list_sorting_space, binningState.sorting_size,
 		binningState.point_list_keys_unsorted, binningState.point_list_keys,
 		binningState.point_list_unsorted, binningState.point_list,
 		num_rendered, 0, 32 + bit
-	));
+	);
 
 	// Identify start and end of per-tile workloads in sorted list
-	CHECK_CUDA(cudaMemset(imgState.ranges, 0, grid.x * grid.y * sizeof(uint2)));
-	CHECK_CUDA(identifyTileRanges<<<(num_rendered+255)/256, 256>>>(
+	cudaMemset(imgState.ranges, 0, grid.x * grid.y * sizeof(uint2));
+	identifyTileRanges<<<(num_rendered+255)/256, 256>>>(
 		num_rendered, binningState.point_list_keys, imgState.ranges
-	));
+	);
 
 	// Let each tile blend its range of voxels independently in parallel
 	const float* color_ptr = colors_precomp != nullptr ? colors_precomp : geomState.rgb;
 	DEBUG_PRINT("Calling render kernel\n");
-	CHECK_CUDA(render<NUM_CHANNELS><<<grid, block>>>(
+	render<NUM_CHANNELS><<<grid, block>>>(
 		imgState.ranges, binningState.point_list,
 		width, height, background, geomState.means2D,
 		color_ptr, geomState.depths, geomState.conic_opacity,
 		imgState.accum_alpha, imgState.n_contrib,
 		out_color, out_depth, out_alpha
-	));
+	);
 
 	return num_rendered;
 }

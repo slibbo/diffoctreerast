@@ -16,7 +16,7 @@ namespace cg = cooperative_groups;
 
 /**
  * Backward pass for converting the input spherical harmonics coefficients of each voxel to a simple RGB color.
- * 
+ *
  * @param deg Degree of the spherical harmonics coefficients.
  * @param max_coeffs Maximum number of coefficients.
  * @param mean Array of 3D points.
@@ -148,7 +148,7 @@ static __device__ void sample_trivec(
 		(p.y - voxel_min.y) / (voxel_max.y - voxel_min.y) * trivec_dim - 0.5f,
 		(p.z - voxel_min.z) / (voxel_max.z - voxel_min.z) * trivec_dim - 0.5f
 	};
-	int3 _ip = { 
+	int3 _ip = {
 		min(trivec_dim - 2, max(0, (int)_p.x)),
 		min(trivec_dim - 2, max(0, (int)_p.y)),
 		min(trivec_dim - 2, max(0, (int)_p.z))
@@ -194,7 +194,7 @@ static __device__ void sample_trivec_backward(
 		(p.y - voxel_min.y) / (voxel_max.y - voxel_min.y) * trivec_dim - 0.5f,
 		(p.z - voxel_min.z) / (voxel_max.z - voxel_min.z) * trivec_dim - 0.5f
 	};
-	int3 _ip = { 
+	int3 _ip = {
 		min(trivec_dim - 2, max(0, (int)_p.x)),
 		min(trivec_dim - 2, max(0, (int)_p.y)),
 		min(trivec_dim - 2, max(0, (int)_p.z))
@@ -216,7 +216,7 @@ static __device__ void sample_trivec_backward(
 		_grad = _grad_density * densities[i];
 		for (int j = 0; j < CHANNELS; j++)
 			_grad += _grad_color[j] * colors[CHANNELS * i + j];
-		
+
 		atomicAdd(trivec_grad + TRIVEC_X_CH(trivec_dim, i) + _ip.x, _grad * (1.0f - w.x) * y * z);
 		atomicAdd(trivec_grad + TRIVEC_X_CH(trivec_dim, i) + _ip.x + 1, _grad * w.x * y * z);
 		atomicAdd(trivec_grad + TRIVEC_Y_CH(trivec_dim, i) + _ip.y, _grad * (1.0f - w.y) * x * z);
@@ -259,7 +259,7 @@ static __device__ void sample_trivec_backward_local(
 		(p.y - voxel_min.y) / (voxel_max.y - voxel_min.y) * trivec_dim - 0.5f,
 		(p.z - voxel_min.z) / (voxel_max.z - voxel_min.z) * trivec_dim - 0.5f
 	};
-	int3 _ip = { 
+	int3 _ip = {
 		min(trivec_dim - 2, max(0, (int)_p.x)),
 		min(trivec_dim - 2, max(0, (int)_p.y)),
 		min(trivec_dim - 2, max(0, (int)_p.z))
@@ -291,7 +291,7 @@ static __device__ void sample_trivec_backward_local(
 
 		_grad = _grad_density * _density;
 		density_grad[i] += _grad;
-		
+
 		for (int j = 0; j < CHANNELS; j++) {
 			_grad = _grad_color[j] * _density;
 			color_grad[CHANNELS * i + j] += _grad;
@@ -302,7 +302,7 @@ static __device__ void sample_trivec_backward_local(
 
 /**
  * Backward version of the rendering procedure.
- * 
+ *
  * @param ranges Ranges of voxel instances for each tile.
  * @param point_list List of voxel instances.
  * @param W Width of the image.
@@ -342,7 +342,7 @@ static __global__ void __launch_bounds__(BLOCK_X * BLOCK_Y)
 renderBackward(
 	const uint2* __restrict__ ranges,
 	const uint32_t* __restrict__ point_list,
-	const int W, 
+	const int W,
     const int H,
 	const float* __restrict__ bg_color,
 	const float3* cam_pos,
@@ -381,7 +381,7 @@ renderBackward(
 	const uint2 pix_min = { block.group_index().x * BLOCK_X, block.group_index().y * BLOCK_Y };
 	const uint2 pix = { pix_min.x + block.thread_index().x, pix_min.y + block.thread_index().y };
 	const uint32_t pix_id = W * pix.y + pix.x;
-	
+
 	// Get ray direction and origin for this pixel.
 	const float2 jt_pix = { pix.x + random_image[pix_id * 3 + 0], pix.y + random_image[pix_id * 3 + 1] };
 	float3 ray_dir = normalize(getRayDir(jt_pix, W, H, tan_fovx, tan_fovy, viewmatrix));
@@ -507,7 +507,7 @@ renderBackward(
 		}
 		cg::wait(block);
 		block.sync();
-		#endif	
+		#endif
 
 		// Iterate over current batch
 		for (int j = 0; j < min(PREFETCH_BUFFER_SIZE, toDo); j++)
@@ -770,7 +770,7 @@ void OctreeTrivecRasterizer::CUDA::backward(
 	DEBUG_PRINT("    - Image size: %d x %d\n", width, height);
 	DEBUG_PRINT("    - Trivec rank: %d\n", trivec_rank);
 	DEBUG_PRINT("    - Trivec dimension: %d\n", trivec_dim);
-	
+
 	// Parrallel config (2D grid of 2D blocks)
     dim3 grid((width + BLOCK_X - 1) / BLOCK_X, (height + BLOCK_Y - 1) / BLOCK_Y);
     dim3 block(BLOCK_X, BLOCK_Y);
@@ -792,7 +792,7 @@ void OctreeTrivecRasterizer::CUDA::backward(
 	);
 	DEBUG_PRINT("Calling render backward kernel\n");
 	DEBUG_PRINT("    - Used shared memory: %zu\n", used_memory);
-	CHECK_CUDA(renderBackward<<<grid, block, used_memory>>>(
+	renderBackward<<<grid, block, used_memory>>>(
         imgState.ranges, binningState.point_list,
 		width, height, background,
 		(float3*)cam_pos, tan_fovx, tan_fovy, viewmatrix, aabb,
@@ -800,13 +800,13 @@ void OctreeTrivecRasterizer::CUDA::backward(
 		imgState.n_contrib, imgState.t_contrib, out_color, out_depth, out_alpha,
 		grad_out_color, grad_out_depth, grad_out_alpha,
         grad_trivecs, grad_densities, grad_colors, aux_grad_colors2, aux_contributions
-    ));
+    );
 
 	DEBUG_PRINT("Calling preprocess backward kernel\n");
-	CHECK_CUDA(preprocessBackward<<<(num_nodes+255)/256, 256>>>(
+	preprocessBackward<<<(num_nodes+255)/256, 256>>>(
 		num_nodes, active_sh_degree, num_sh_coefs, trivec_rank,
         positions, shs,
         (glm::vec3*)cam_pos, aabb,
         grad_colors, grad_shs
-	));
+	);
 }

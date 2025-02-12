@@ -818,7 +818,7 @@ void OctreeDecoupolyRasterizer::CUDA::backward(
 	ImageState imgState = ImageState::fromChunk(img_buffer, width * height);
 
 	const float* color_ptr = (shs) ? geomState.colors : colors;
-    CHECK_CUDA(renderBackward<<<grid, block>>>(
+    renderBackward<<<grid, block>>>(
         imgState.ranges, binningState.point_list,
 		width, height, background,
 		(float3*)cam_pos, tan_fovx, tan_fovy, viewmatrix, aabb,
@@ -826,12 +826,12 @@ void OctreeDecoupolyRasterizer::CUDA::backward(
 		imgState.n_contrib, imgState.t_contrib, out_color, out_depth, out_alpha,
 		grad_out_color, grad_out_depth, grad_out_alpha,
         grad_decoupolys_V, grad_decoupolys_g, grad_densities, grad_colors, aux_grad_colors2, aux_contributions
-    ));
+    );
 
-	CHECK_CUDA(preprocessBackward<<<(num_nodes+255)/256, 256>>>(
+	preprocessBackward<<<(num_nodes+255)/256, 256>>>(
 		num_nodes, active_sh_degree, num_sh_coefs,
         positions, shs,
         (glm::vec3*)cam_pos, aabb,
         grad_colors, grad_shs
-	));
+	);
 }
