@@ -6,6 +6,7 @@
 hip/
 *_hip.*
 build/
+*.egg-info
 
 # User-specific files
 *.rsuser
