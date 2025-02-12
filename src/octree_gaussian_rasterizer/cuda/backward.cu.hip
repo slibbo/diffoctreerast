@@ -6,7 +6,7 @@
 #include <glm/glm.hpp>
 
 #include <hip/hip_cooperative_groups.h>
-#include <cooperative_groups/reduce.h>
+// #include <cooperative_groups/reduce.h>
 namespace cg = cooperative_groups;
 
 #include "config.h"

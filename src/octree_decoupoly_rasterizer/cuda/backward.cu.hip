@@ -4,7 +4,7 @@
 #include <hipcub/hipcub.hpp>
 #include <cub/block/block_reduce.cuh>
 #include <hip/hip_cooperative_groups.h>
-#include <cooperative_groups/memcpy_async.h>
+// #include <cooperative_groups/memcpy_async.h>
 #include <glm/glm.hpp>
 namespace cg = cooperative_groups;
 

@@ -15,7 +15,7 @@
 #define TRIVEC_Z_CH(dim, n) (n * 3 * dim + 2 * dim)
 
 // Optimizations
-#define ASYNC_GLOBAL_TO_SHARED
+// #define ASYNC_GLOBAL_TO_SHARED
 
 #define GRAD_GLOBAL
 // #define GRAD_SHARED_TO_GLOBAL
